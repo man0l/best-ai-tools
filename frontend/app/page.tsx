@@ -2,6 +2,9 @@ import { Suspense } from 'react';
 import { Tool } from '@/types';
 import ClientHomeContent from '@/components/ClientHomeContent';
 
+// Add this line to explicitly mark the route as dynamic
+export const dynamic = 'force-dynamic';
+
 interface PaginatedResponse {
   tools: Tool[];
   pagination: {
