@@ -168,7 +168,35 @@ export default function Footer() {
         <div className="mt-8">
           <TrustpilotWidget />
         </div>
-        <div className="mt-8 pt-8 border-t border-gray-200 text-center text-muted-foreground text-sm">
+        <div className="mt-8 pt-8 border-t border-gray-200 flex flex-col items-center text-muted-foreground text-sm">
+          <div className="mb-4 space-x-4">
+            <a 
+              href="https://saas-boilerplate.eu/" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="hover:text-accent-foreground transition-colors"
+            >
+              Saas Boilerplate Starter
+            </a>
+            <span>·</span>
+            <a 
+              href="https://aiaccelerator.bg/" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="hover:text-accent-foreground transition-colors"
+            >
+              AI Automation Services
+            </a>
+            <span>·</span>
+            <a 
+              href="https://www.linkedin.com/in/man0l" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="hover:text-accent-foreground transition-colors"
+            >
+              Created by Manol
+            </a>
+          </div>
           <div>© {new Date().getFullYear()} Best AI Tools. All rights reserved.</div>
           <div className="mt-2 space-x-4">
             <Link href="/terms" className="hover:text-accent-foreground transition-colors">
