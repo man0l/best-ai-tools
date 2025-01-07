@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 import { Tool } from '../../../types';
 import ToolCard from '../../../components/ToolCard';
-import Pagination from '../../../components/Pagination';
+import Link from 'next/link';
 
 const ITEMS_PER_PAGE = 9;
 
@@ -18,6 +18,63 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
+function PaginationControls({ 
+  currentPage, 
+  totalPages, 
+  category 
+}: { 
+  currentPage: number; 
+  totalPages: number; 
+  category: string;
+}) {
+  const createPageURL = (pageNumber: number) => {
+    return `/category/${category}${pageNumber > 1 ? `?page=${pageNumber}` : ''}`;
+  };
+
+  return (
+    <div className="flex justify-center items-center gap-4 mt-8">
+      {currentPage > 1 && (
+        <Link
+          href={createPageURL(currentPage - 1)}
+          className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+        >
+          Previous
+        </Link>
+      )}
+      
+      <div className="flex items-center gap-2">
+        {[...Array(totalPages)].map((_, i) => {
+          const pageNumber = i + 1;
+          const isCurrentPage = pageNumber === currentPage;
+          
+          return (
+            <Link
+              key={pageNumber}
+              href={createPageURL(pageNumber)}
+              className={`px-4 py-2 text-sm font-medium rounded-md ${
+                isCurrentPage
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              {pageNumber}
+            </Link>
+          );
+        })}
+      </div>
+
+      {currentPage < totalPages && (
+        <Link
+          href={createPageURL(currentPage + 1)}
+          className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+        >
+          Next
+        </Link>
+      )}
+    </div>
+  );
+}
+
 export default async function CategoryPage({ params, searchParams }: Props) {
   const currentPage = Number(searchParams.page) || 1;
   const slug = params.slug;
@@ -26,8 +83,14 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   const category = decodeURIComponent(slug.toString()).replace(/-/g, ' ').toLowerCase().trim();
   
   try {
-    console.log('Fetching from:', `${API_BASE_URL}/tools?category=${encodeURIComponent(category)}`);
-    const res = await fetch(`${API_BASE_URL}/tools?category=${encodeURIComponent(category)}`, { 
+    // Add pagination parameters to the API request
+    const url = new URL(`${API_BASE_URL}/tools`);
+    url.searchParams.set('category', category);
+    url.searchParams.set('page', currentPage.toString());
+    url.searchParams.set('limit', ITEMS_PER_PAGE.toString());
+
+    console.log('Fetching from:', url.toString());
+    const res = await fetch(url, { 
       next: { revalidate: 3600 },
       headers: {
         'Accept': 'application/json',
@@ -47,31 +110,27 @@ export default async function CategoryPage({ params, searchParams }: Props) {
     console.log('API Response:', {
       hasTools: !!response.tools,
       toolsCount: response.tools ? response.tools.length : 0,
-      firstTool: response.tools?.[0]
+      pagination: response.pagination
     });
 
-    const tools = Array.isArray(response) ? response : (response.tools || []);
+    const tools = response.tools || [];
+    const totalItems = response.pagination?.total || tools.length;
+    const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
 
     if (tools.length === 0) {
       return (
         <div className="container mx-auto px-4 py-8">
           <h1 className="text-3xl font-bold mb-6">No tools found</h1>
           <p>No tools found for category: {category}</p>
-          <a 
+          <Link 
             href="/"
             className="mt-4 text-blue-600 hover:text-blue-800 inline-block"
           >
             Return to home
-          </a>
+          </Link>
         </div>
       );
     }
-
-    const totalPages = Math.ceil(tools.length / ITEMS_PER_PAGE);
-    const paginatedTools = tools.slice(
-      (currentPage - 1) * ITEMS_PER_PAGE,
-      currentPage * ITEMS_PER_PAGE
-    );
 
     return (
       <div className="container mx-auto px-4 py-12">
@@ -79,7 +138,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
           Best AI {category} Tools
         </h1>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 max-w-7xl mx-auto">
-          {paginatedTools.map((tool: Tool, index: number) => (
+          {tools.map((tool: Tool, index: number) => (
             <ToolCard
               key={tool.title || index}
               title={tool.title}
@@ -93,14 +152,12 @@ export default async function CategoryPage({ params, searchParams }: Props) {
           ))}
         </div>
         
-        {tools.length > ITEMS_PER_PAGE && (
-          <div className="mt-8">
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={() => {}}
-            />
-          </div>
+        {totalPages > 1 && (
+          <PaginationControls
+            currentPage={currentPage}
+            totalPages={totalPages}
+            category={encodeURIComponent(slug.toString())}
+          />
         )}
       </div>
     );
@@ -110,12 +167,12 @@ export default async function CategoryPage({ params, searchParams }: Props) {
       <div className="container mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-6">Error</h1>
         <p className="text-red-600">Failed to load tools. Please try again later.</p>
-        <a 
+        <Link 
           href="/"
           className="mt-4 text-blue-600 hover:text-blue-800 inline-block"
         >
           Return to home
-        </a>
+        </Link>
       </div>
     );
   }
