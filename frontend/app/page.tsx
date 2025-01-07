@@ -1,130 +1,103 @@
-'use client';
-import { useEffect, useState, Suspense } from 'react';
-import { Tool } from '../types';
-import Hero from '../components/Hero';
-import ToolCard from '../components/ToolCard';
-import SearchBar from '../components/SearchBar';
-import CategoryFilter from '../components/CategoryFilter';
-import Pagination from '../components/Pagination';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
+import { Tool } from '@/types';
+import ClientHomeContent from '@/components/ClientHomeContent';
 
-const ITEMS_PER_PAGE = 9;
-
-function HomeContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const [tools, setTools] = useState<Tool[]>([]);
-  const [filteredTools, setFilteredTools] = useState<Tool[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [currentPage, setCurrentPage] = useState(() => {
-    return Number(searchParams.get('page')) || 1;
-  });
-  const [categories, setCategories] = useState<string[]>([]);
-
-  useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/tools`)
-      .then(res => res.json())
-      .then(data => {
-        // Only keep tools with descriptions
-        const validTools = data.filter((tool: Tool) => tool.description && tool.description.trim() !== '');
-        setTools(validTools);
-        // Extract unique categories
-        const uniqueCategories = Array.from(new Set(validTools.map((tool: Tool) => tool.filter1))) as string[];
-        setCategories(uniqueCategories);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error('Error fetching tools:', err);
-        setLoading(false);
-      });
-  }, []);
-
-  useEffect(() => {
-    let filtered = [...tools];
-
-    // Apply search filter
-    if (searchQuery) {
-      filtered = filtered.filter(tool =>
-        tool.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        tool.description.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-
-    // Apply category filter
-    if (selectedCategory) {
-      filtered = filtered.filter(tool => tool.filter1 === selectedCategory);
-    }
-
-    setFilteredTools(filtered);
-    setCurrentPage(1); // Reset to first page when filters change
-  }, [searchQuery, selectedCategory, tools]);
-
-  const totalPages = Math.ceil(filteredTools.length / ITEMS_PER_PAGE);
-  const paginatedTools = filteredTools.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
-  );
-
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-    // Update URL with new page number without scrolling
-    const url = new URL(window.location.href);
-    url.searchParams.set('page', page.toString());
-    router.push(url.pathname + url.search, { scroll: false });
+interface PaginatedResponse {
+  tools: Tool[];
+  pagination: {
+    total: number;
+    totalPages: number;
+    currentPage: number;
+    perPage: number;
   };
-
-  return (
-    <>
-      <Hero />
-      <div className="container mx-auto px-4 py-12">
-        <div className="max-w-2xl mx-auto mb-12">
-          <SearchBar onSearch={setSearchQuery} />
-          <CategoryFilter
-            categories={categories}
-            selectedCategory={selectedCategory}
-            onCategoryChange={setSelectedCategory}
-          />
-        </div>
-        
-        {loading ? (
-          <div className="text-center">Loading...</div>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 max-w-7xl mx-auto mt-8">
-              {paginatedTools.map((tool, index) => (
-                <ToolCard
-                  key={index}
-                  title={tool.title}
-                  description={tool.description}
-                  imageUrl={tool.imageUrl}
-                  category={tool.filter1}
-                  url={tool.url}
-                  tags={tool.Tags ? tool.Tags.split(',') : []}
-                  rank={tool.rank}
-                />
-              ))}
-            </div>
-            
-            {filteredTools.length > ITEMS_PER_PAGE && (
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={handlePageChange}
-              />
-            )}
-          </>
-        )}
-      </div>
-    </>
-  );
 }
 
-export default function Home() {
+async function getInitialData(searchParams: { [key: string]: string | string[] | undefined }) {
+  try {
+    // Don't use page param if it's 1 or not provided
+    const page = searchParams.page && Number(searchParams.page) > 1 ? Number(searchParams.page) : 1;
+    const category = typeof searchParams.category === 'string' ? searchParams.category : '';
+    const limit = 9;
+    
+    const apiUrl = process.env.SERVER_API_URL;
+    if (!apiUrl) {
+      throw new Error('API URL is not defined');
+    }
+
+    // Build query parameters
+    const params = new URLSearchParams();
+    params.set('page', page.toString());
+    params.set('limit', limit.toString());
+    if (category) {
+      params.set('category', category);
+    }
+
+    // Parallel fetch for better performance
+    const [toolsRes, categoriesRes] = await Promise.all([
+      fetch(`${apiUrl}/tools?${params.toString()}`, {
+        headers: { 'Accept': 'application/json' },
+        next: { revalidate: 30 } // Revalidate every 30 seconds for fresh data while maintaining cache
+      }),
+      fetch(`${apiUrl}/categories`, {
+        headers: { 'Accept': 'application/json' },
+        next: { revalidate: 3600 } // Cache categories for 1 hour as they change less frequently
+      })
+    ]);
+    
+    if (!toolsRes.ok || !categoriesRes.ok) {
+      throw new Error(`Failed to fetch data: ${toolsRes.statusText} ${categoriesRes.statusText}`);
+    }
+    
+    const [toolsData, categoriesData] = await Promise.all([
+      toolsRes.json(),
+      categoriesRes.json()
+    ]);
+
+    // Log for debugging
+    console.log('Category:', category);
+    console.log('Total tools:', toolsData.pagination.total);
+
+    return {
+      tools: toolsData.tools,
+      pagination: toolsData.pagination,
+      categories: categoriesData.map((cat: any) => cat.name),
+      selectedCategory: category
+    };
+  } catch (error) {
+    console.error('Error fetching data:', error);
+    return null;
+  }
+}
+
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: { [key: string]: string | string[] | undefined };
+}) {
+  const data = await getInitialData(searchParams);
+  
+  if (!data) {
+    return (
+      <div className="container mx-auto px-4 py-12 text-center">
+        <h2 className="text-2xl font-bold">Error loading data</h2>
+        <p className="mt-2">Please try refreshing the page</p>
+      </div>
+    );
+  }
+
   return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <HomeContent />
+    <Suspense fallback={
+      <div className="container mx-auto px-4 py-12 text-center">
+        <div className="animate-pulse">Loading...</div>
+      </div>
+    }>
+      <ClientHomeContent 
+        initialTools={data.tools} 
+        initialCategories={data.categories}
+        initialPagination={data.pagination}
+        initialPage={data.pagination.currentPage}
+        selectedCategory={data.selectedCategory}
+      />
     </Suspense>
   );
 }

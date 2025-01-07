@@ -91,9 +91,9 @@ export default function CategoryPage() {
         Best AI {decodeURIComponent(slug?.toString() || '').replace(/-/g, ' ')} Tools
       </h1>
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 max-w-7xl mx-auto">
-        {paginatedTools.map((tool, index) => (
+        {paginatedTools.map((tool: Tool, index: number) => (
           <ToolCard
-            key={index}
+            key={tool.title || index}
             title={tool.title}
             description={tool.description}
             imageUrl={tool.imageUrl}
@@ -106,11 +106,13 @@ export default function CategoryPage() {
       </div>
       
       {tools.length > ITEMS_PER_PAGE && (
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={handlePageChange}
-        />
+        <div className="mt-8">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+          />
+        </div>
       )}
     </div>
   );

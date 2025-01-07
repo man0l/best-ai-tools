@@ -1,6 +1,10 @@
 import Image from 'next/image';
 
-export default function Hero() {
+interface HeroProps {
+  onHomeClick?: () => void;
+}
+
+export default function Hero({ onHomeClick }: HeroProps) {
   return (
     <div className="relative overflow-hidden bg-background py-20 sm:py-32">
       <div className="absolute inset-0 bg-[url(/grid.svg)] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]" />
@@ -8,7 +12,7 @@ export default function Hero() {
       <div className="relative container mx-auto px-4">
         <div className="max-w-3xl mx-auto text-center">
           <h1 className="mb-6">
-            <span className="block text-muted-foreground font-medium mb-2">AI Tools Directory</span>
+            <span className="block text-muted-foreground font-medium mb-2" onClick={onHomeClick} style={{ cursor: 'pointer' }}>AI Tools Directory</span>
             <span className="gradient-text">Discover and Compare</span>
             <span className="block mt-1">The Best AI Tools</span>
           </h1>

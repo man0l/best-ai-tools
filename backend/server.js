@@ -43,8 +43,53 @@ loadData();
 
 // Routes
 app.get('/api/tools', (req, res) => {
-  const filteredTools = aiTools.filter(tool => tool.description && tool.description.trim() !== '');
-  res.json(filteredTools);
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 9;
+  const category = req.query.category;
+
+  console.log('Request params:', { page, limit, category });
+
+  // Filter tools by category if provided
+  const filteredTools = category 
+    ? aiTools.filter(tool => {
+        // Handle comma-separated categories
+        const toolCategories = tool.filter1.split(',').map(cat => cat.trim().toLowerCase());
+        console.log('Tool categories:', tool.filter1, toolCategories);
+        return toolCategories.includes(category.toLowerCase());
+      })
+    : aiTools;
+
+  console.log('Filtered tools count:', filteredTools.length);
+
+  // Filter out tools without descriptions
+  const validTools = filteredTools.filter(tool => tool.description && tool.description.trim() !== '');
+  
+  // Get total count for pagination
+  const total = validTools.length;
+  
+  // Calculate start and end indices for pagination
+  const start = (page - 1) * limit;
+  const end = start + limit;
+  
+  // Get paginated data
+  const paginatedTools = validTools.slice(start, end);
+
+  console.log('Response stats:', {
+    totalTools: total,
+    totalPages: Math.ceil(total / limit),
+    currentPage: page,
+    toolsOnPage: paginatedTools.length
+  });
+
+  res.json({
+    tools: paginatedTools,
+    pagination: {
+      total,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
+      perPage: limit
+    }
+  });
 });
 
 app.get('/api/tools/:id', (req, res) => {
@@ -117,6 +162,24 @@ app.get('/api/sitemap.xml', (req, res) => {
   
   res.header('Content-Type', 'application/xml');
   res.send(generateSitemapXML(baseUrl));
+});
+
+// Add a new endpoint for categories
+app.get('/api/categories', (req, res) => {
+  const validTools = aiTools.filter(tool => tool.description && tool.description.trim() !== '');
+  const categoryMap = validTools.reduce((acc, tool) => {
+    const category = tool.filter1;
+    if (category) {
+      acc[category] = (acc[category] || 0) + 1;
+    }
+    return acc;
+  }, {});
+
+  const categories = Object.entries(categoryMap)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count);
+
+  res.json(categories);
 });
 
 // Only start the server if we're running directly (not being imported)

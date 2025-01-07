@@ -1,6 +1,8 @@
+'use client';
+
 import { Tool } from '../types';
 import ToolCard from './ToolCard';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 
 interface RelatedToolsProps {
@@ -24,77 +26,55 @@ export default function RelatedTools({ tools, category }: RelatedToolsProps) {
     setCurrentPage((prev) => (prev - 1 + totalPages) % totalPages);
   };
 
-  const visibleTools = tools.slice(
-    currentPage * itemsPerPage,
-    (currentPage + 1) * itemsPerPage
-  );
+  const startIdx = currentPage * itemsPerPage;
+  const visibleTools = tools.slice(startIdx, startIdx + itemsPerPage);
 
   return (
     <div className="mt-12">
-      <h2 className="text-2xl font-semibold mb-8">More {category} Tools</h2>
+      <h2 className="text-2xl font-semibold mb-6">More {category} Tools</h2>
       
       <div 
         className="relative"
         onMouseEnter={() => setIsHovering(true)}
         onMouseLeave={() => setIsHovering(false)}
       >
-        {/* Navigation Arrows */}
-        {tools.length > itemsPerPage && (
-          <>
-            <button
-              onClick={prevSlide}
-              className={`absolute left-0 top-1/2 -translate-y-1/2 -translate-x-6 z-10 p-2 rounded-full bg-white shadow-lg text-gray-600 hover:text-gray-900 transition-all duration-200 ${
-                isHovering ? 'opacity-100' : 'opacity-0'
-              }`}
-              aria-label="Previous slide"
-            >
-              <ChevronLeftIcon className="w-6 h-6" />
-            </button>
-            <button
-              onClick={nextSlide}
-              className={`absolute right-0 top-1/2 -translate-y-1/2 translate-x-6 z-10 p-2 rounded-full bg-white shadow-lg text-gray-600 hover:text-gray-900 transition-all duration-200 ${
-                isHovering ? 'opacity-100' : 'opacity-0'
-              }`}
-              aria-label="Next slide"
-            >
-              <ChevronRightIcon className="w-6 h-6" />
-            </button>
-          </>
-        )}
-
-        {/* Carousel Content */}
-        <div className="grid grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {visibleTools.map((tool, index) => (
-            <div key={index} className="transform transition-all duration-300 hover:scale-105">
-              <ToolCard
-                title={tool.title}
-                description={tool.description}
-                imageUrl={tool.imageUrl}
-                category={tool.filter1}
-                url={tool.url}
-                tags={tool.Tags ? tool.Tags.split(',') : []}
-                rank={tool.rank}
-              />
-            </div>
+            <ToolCard
+              key={index}
+              title={tool.title}
+              description={tool.description}
+              imageUrl={tool.imageUrl}
+              category={tool.filter1}
+              url={tool.url}
+              tags={tool.Tags ? tool.Tags.split(',') : []}
+              rank={tool.rank}
+            />
           ))}
         </div>
 
-        {/* Navigation Dots */}
+        {/* Navigation arrows - only show if there's more than one page */}
         {totalPages > 1 && (
-          <div className="flex justify-center gap-2 mt-6">
-            {Array.from({ length: totalPages }).map((_, index) => (
-              <button
-                key={index}
-                onClick={() => setCurrentPage(index)}
-                className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                  currentPage === index
-                    ? 'bg-blue-600 w-4'
-                    : 'bg-gray-300 hover:bg-gray-400'
-                }`}
-                aria-label={`Go to slide ${index + 1}`}
-              />
-            ))}
-          </div>
+          <>
+            <button
+              onClick={prevSlide}
+              className={`absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 bg-white p-2 rounded-full shadow-md transition-opacity ${
+                isHovering ? 'opacity-100' : 'opacity-0'
+              }`}
+              aria-label="Previous tools"
+            >
+              <ChevronLeftIcon className="h-6 w-6 text-gray-600" />
+            </button>
+            <button
+              onClick={nextSlide}
+              className={`absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 bg-white p-2 rounded-full shadow-md transition-opacity ${
+                isHovering ? 'opacity-100' : 'opacity-0'
+              }`}
+              aria-label="Next tools"
+            >
+              <ChevronRightIcon className="h-6 w-6 text-gray-600" />
+            </button>
+          </>
         )}
       </div>
     </div>

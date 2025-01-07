@@ -19,6 +19,11 @@ interface ToolCardProps {
   rank?: number;
 }
 
+function createExcerpt(text: string, maxLength: number = 150): string {
+  if (!text) return '';
+  return text.length > maxLength ? `${text.substring(0, maxLength)}...` : text;
+}
+
 export default function ToolCard({ 
   title, 
   description, 
@@ -29,6 +34,8 @@ export default function ToolCard({
   rank
 }: ToolCardProps) {
   const slug = url ? createSlug(url) : createSlug(title);
+  const cleanDescription = stripHtml(description);
+  const excerpt = createExcerpt(cleanDescription);
   
   return (
     <Link href={`/tool/${slug}`} className="card block h-full">
@@ -36,21 +43,21 @@ export default function ToolCard({
         {/* Title and Tags Section */}
         <div className="mb-4">
           <h3 className="text-xl font-semibold mb-2">{title}</h3>
-          {tags.length > 0 && (
+          {tags && tags.length > 0 && (
             <div className="flex flex-wrap gap-2 mb-3">
               {tags.map((tag, index) => (
                 <span
                   key={index}
                   className="text-xs px-2 py-1 bg-gray-100 rounded-full text-gray-600"
                 >
-                  {tag.trim()}
+                  {tag?.trim()}
                 </span>
               ))}
             </div>
           )}
         </div>
 
-        {/* Image Section - Now Wider */}
+        {/* Image Section */}
         <div className="relative aspect-[16/9] w-full mb-4">
           <Image
             src={imageUrl || '/placeholder.png'}
@@ -68,7 +75,7 @@ export default function ToolCard({
 
         {/* Description */}
         <p className="text-muted-foreground text-sm line-clamp-2">
-          {stripHtml(description)}
+          {excerpt}
         </p>
 
         {/* Category */}
