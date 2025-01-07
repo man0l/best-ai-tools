@@ -168,8 +168,11 @@ app.get('/api/sitemap.xml', (req, res) => {
 // New endpoint for categories
 app.get('/api/categories', (req, res) => {
   try {
+    // First filter tools to only those with descriptions
+    const toolsWithDescriptions = aiTools.filter(tool => tool.description && tool.description.trim() !== '');
+
     // Create a map to count tools per category
-    const categoryMap = aiTools.reduce((acc, tool) => {
+    const categoryMap = toolsWithDescriptions.reduce((acc, tool) => {
       if (tool.filter1) {
         // Split categories if they contain commas and process each one
         const categories = tool.filter1.split(',').map(cat => cat.trim());
