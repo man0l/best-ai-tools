@@ -4,13 +4,15 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/generate-sitemap.js && next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "generate-sitemap": "node scripts/generate-sitemap.js"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
     "@next/third-parties": "^14.1.0",
+    "axios": "^1.7.9",
     "next": "14.1.0",
     "react": "^18",
     "react-dom": "^18",
