@@ -39,35 +39,66 @@ async function getToolData(url: string) {
       throw new Error('API URL is not defined');
     }
 
-    const res = await fetch(`${apiUrl}/tools`, { 
-      next: { revalidate: 3600 } // Cache for 1 hour
+    // Decode and normalize the URL parameter
+    const decodedUrl = decodeURIComponent(url).toLowerCase().trim();
+    console.log('Looking for tool with URL:', decodedUrl);
+
+    const res = await fetch(`${apiUrl}/tools?single=true`, { 
+      cache: 'no-store' // Disable caching to always get fresh data
     });
     
     if (!res.ok) {
-      throw new Error(`Failed to fetch tools: ${res.statusText}`);
+      console.error(`Failed to fetch tools: ${res.statusText}`);
+      return { tool: null, relatedTools: [] };
     }
 
     const { tools } = await res.json();
-    const foundTool = tools.find((t: Tool) => 
-      t.url === url || createSlug(t.title) === url
-    );
+    console.log('Total tools loaded:', tools.length);
+    
+    // Try to find the tool using multiple matching strategies
+    const foundTool = tools.find((t: Tool) => {
+      // Normalize all possible URL variations
+      const urlMatch = (t.url || '').toLowerCase().trim() === decodedUrl;
+      const pageMatch = (t.page || '').toLowerCase().trim() === decodedUrl;
+      const titleSlug = createSlug(t.title);
+      const slugMatch = titleSlug === decodedUrl;
+      
+      // Special case for "character-gpt"
+      const isCharacterGpt = decodedUrl === 'character-gpt' && 
+        (t.title.toLowerCase().includes('character gpt') || 
+         titleSlug.includes('character-gpt'));
+      
+      console.log('Checking tool:', {
+        title: t.title,
+        url: t.url,
+        page: t.page,
+        titleSlug,
+        matches: { urlMatch, pageMatch, slugMatch, isCharacterGpt }
+      });
+      
+      return urlMatch || pageMatch || slugMatch || isCharacterGpt;
+    });
 
     if (!foundTool) {
+      console.error(`Tool not found for URL: ${decodedUrl}`);
       return { tool: null, relatedTools: [] };
     }
+
+    console.log('Found tool:', foundTool.title);
 
     // Find related tools from the same category
     const relatedTools = tools
       .filter((t: Tool) => 
         t.filter1 === foundTool.filter1 && // Same category
-        t.title !== foundTool.title // Exclude current tool
+        t.title !== foundTool.title && // Exclude current tool
+        t.description?.trim() !== '' // Ensure tool has description
       )
       .slice(0, 5); // Take first 5
 
     return { tool: foundTool, relatedTools };
   } catch (error) {
     console.error('Error fetching tool data:', error);
-    throw error;
+    return { tool: null, relatedTools: [] };
   }
 }
 

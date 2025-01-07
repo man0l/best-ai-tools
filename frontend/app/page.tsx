@@ -60,7 +60,7 @@ async function getInitialData(searchParams: { [key: string]: string | string[] |
     return {
       tools: toolsData.tools,
       pagination: toolsData.pagination,
-      categories: categoriesData.map((cat: any) => cat.name),
+      categories: categoriesData.categories.map((cat: any) => cat.name),
       selectedCategory: category
     };
   } catch (error) {

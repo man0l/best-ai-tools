@@ -46,43 +46,44 @@ app.get('/api/tools', (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 9;
   const category = req.query.category;
+  const searchUrl = req.query.url;
+  const isSingleToolRequest = req.query.single === 'true';
 
-  console.log('Request params:', { page, limit, category });
+  console.log('Request params:', { page, limit, category, searchUrl, isSingleToolRequest });
 
-  // Filter tools by category if provided
+  // First filter tools by description to ensure quality content
+  const toolsWithDescriptions = aiTools.filter(tool => tool.description && tool.description.trim() !== '');
+
+  // Then filter by category if provided
   const filteredTools = category 
-    ? aiTools.filter(tool => {
-        // Handle comma-separated categories
-        const toolCategories = tool.filter1.split(',').map(cat => cat.trim().toLowerCase());
-        console.log('Tool categories:', tool.filter1, toolCategories);
-        return toolCategories.includes(category.toLowerCase());
+    ? toolsWithDescriptions.filter(tool => {
+        if (!tool.filter1) return false;
+        const toolCategories = tool.filter1.split(',').map(cat => cat.trim());
+        const categoryNormalized = category.toLowerCase().replace(/-/g, ' ');
+        return toolCategories.some(cat => cat.toLowerCase() === categoryNormalized);
       })
-    : aiTools;
-
-  console.log('Filtered tools count:', filteredTools.length);
-
-  // Filter out tools without descriptions
-  const validTools = filteredTools.filter(tool => tool.description && tool.description.trim() !== '');
+    : toolsWithDescriptions;
   
   // Get total count for pagination
-  const total = validTools.length;
+  const total = filteredTools.length;
   
   // Calculate start and end indices for pagination
   const start = (page - 1) * limit;
   const end = start + limit;
   
   // Get paginated data
-  const paginatedTools = validTools.slice(start, end);
+  const paginatedTools = filteredTools.slice(start, end);
 
   console.log('Response stats:', {
     totalTools: total,
     totalPages: Math.ceil(total / limit),
     currentPage: page,
-    toolsOnPage: paginatedTools.length
+    toolsOnPage: paginatedTools.length,
+    isPaginated: !isSingleToolRequest
   });
 
   res.json({
-    tools: paginatedTools,
+    tools: isSingleToolRequest ? filteredTools : paginatedTools,
     pagination: {
       total,
       totalPages: Math.ceil(total / limit),
@@ -164,22 +165,34 @@ app.get('/api/sitemap.xml', (req, res) => {
   res.send(generateSitemapXML(baseUrl));
 });
 
-// Add a new endpoint for categories
+// New endpoint for categories
 app.get('/api/categories', (req, res) => {
-  const validTools = aiTools.filter(tool => tool.description && tool.description.trim() !== '');
-  const categoryMap = validTools.reduce((acc, tool) => {
-    const category = tool.filter1;
-    if (category) {
-      acc[category] = (acc[category] || 0) + 1;
-    }
-    return acc;
-  }, {});
+  try {
+    // Create a map to count tools per category
+    const categoryMap = aiTools.reduce((acc, tool) => {
+      if (tool.filter1) {
+        // Split categories if they contain commas and process each one
+        const categories = tool.filter1.split(',').map(cat => cat.trim());
+        categories.forEach(category => {
+          if (category) {
+            acc[category] = (acc[category] || 0) + 1;
+          }
+        });
+      }
+      return acc;
+    }, {});
 
-  const categories = Object.entries(categoryMap)
-    .map(([name, count]) => ({ name, count }))
-    .sort((a, b) => b.count - a.count);
+    // Convert to array and sort by count
+    const categories = Object.entries(categoryMap)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .filter(category => category.name.length > 0);
 
-  res.json(categories);
+    res.json({ categories });
+  } catch (error) {
+    console.error('Error getting categories:', error);
+    res.status(500).json({ message: 'Error getting categories' });
+  }
 });
 
 // Only start the server if we're running directly (not being imported)
